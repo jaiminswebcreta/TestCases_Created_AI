@@ -10,7 +10,7 @@ import streamlit_cookies_manager
 from st_copy_button import st_copy_button
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, JsCode
 import easyocr  # For OCR
-from fpdf import FPDF  # For PDF Export
+from fpdf import FPDF, FontFace # For PDF Export
 
 # --- Page Configuration (MUST be the first Streamlit command) ---
 st.set_page_config(layout="wide", page_title="Professional AI Test Case Generator")
@@ -147,32 +147,44 @@ class PDF(FPDF):
 def export_df_to_pdf(df):
     pdf = PDF()
     pdf.add_page(orientation='L')
-    pdf.set_font("Arial", "B", size=6)
-    
-    headers = df.columns.tolist()
+    pdf.set_font("Arial", size=7)
+
     df_pdf = df.copy()
     columns_to_clean = ['Test Steps', 'Expected Result']
     for col in columns_to_clean:
         if col in df_pdf.columns:
             df_pdf[col] = df_pdf[col].astype(str).str.replace('<br>', '\n', regex=False)
+
+    headers = df_pdf.columns.tolist()
+    data = df_pdf.astype(str).values.tolist()
+
+    known_widths = {
+        'Test Case ID': 22, 'Module Name': 20, 'Category': 20,
+        'Test Case Title': 35, 'Test Steps': 65, 'Expected Result': 60,
+        'Priority': 15, 'Test Type': 15, 'Screen': 20,
+        'Status': 15, 'Mark as Bug': 15, 'Assigned To': 20, 'Actual Result': 20
+    }
+    default_width = 18
+    final_col_widths = [known_widths.get(h, default_width) for h in headers]
     
-    col_widths = {'Test Case ID': 22, 'Module Name': 20, 'Category': 20, 'Test Case Title': 40, 'Test Steps': 70, 'Expected Result': 40, 'Priority': 15, 'Test Type': 15, 'Screen': 20}
-    default_width = 18; line_height = pdf.font_size * 2.5
-    
-    for header in headers: pdf.cell(col_widths.get(header, default_width), line_height, header, border=1)
-    pdf.ln(line_height)
-    
-    pdf.set_font("Arial", size=6)
-    for _, row in df_pdf.iterrows():
-        max_height = 0; x_start, y_start = pdf.get_x(), pdf.get_y()
+    bold_style = FontFace(emphasis="BOLD")
+
+    with pdf.table(
+        col_widths=final_col_widths,
+        text_align="LEFT",
+        line_height=pdf.font_size * 1.5,
+        borders_layout="ALL"
+    ) as table:
+        header_row = table.row()
         for header in headers:
-            width = col_widths.get(header, default_width)
-            pdf.multi_cell(width, line_height, str(row.get(header, '')), border=1, ln=3, max_line_height=pdf.font_size)
-            if pdf.get_y() > max_height: max_height = pdf.get_y()
-            pdf.set_y(y_start); pdf.set_x(pdf.get_x() + width)
-        pdf.set_y(max_height); pdf.ln(0)
-        
-    return bytes(pdf.output(dest='S'))
+            header_row.cell(header, style=bold_style)
+            
+        for data_row_list in data:
+            row = table.row()
+            for datum in data_row_list:
+                row.cell(datum)
+                
+    return bytes(pdf.output())
 
 def generate_test_cases(api_key, user_description, num_cases, categories, prefix, image_parts, ocr_text):
     genai.configure(api_key=api_key)
@@ -297,12 +309,17 @@ with main_cols[1]:
                     AgGrid(bug_df, fit_columns_on_grid_load=True, theme='streamlit')
                     if st.button("🤖 Generate AI Bug Summary"):
                         with st.spinner("AI is analyzing the bugs..."): st.session_state.bug_summary = generate_bug_summary(api_key, bug_df)
-                    if st.session_state.bug_summary: st.markdown("---"), st.markdown("#### AI Generated Summary"), st.info(st.session_state.bug_summary)
+                    
+                    # --- THIS IS THE FIX ---
+                    # The logic must be in a proper if block, not a single line with commas
+                    if st.session_state.bug_summary:
+                        st.markdown("---")
+                        st.markdown("#### AI Generated Summary")
+                        st.info(st.session_state.bug_summary)
+
         with tab3:
             st.markdown("#### Full Raw Output from AI")
             st.info("This is the complete, unedited response from the AI, with formatting rendered for readability.")
-            # --- THIS IS THE FIX ---
-            # Each Streamlit command that draws to the screen must be on its own line.
             st_copy_button(st.session_state.last_response, "📋 Copy Raw Text to Clipboard")
             st.markdown(f"--- \n {st.session_state.last_response}", unsafe_allow_html=True)
 
