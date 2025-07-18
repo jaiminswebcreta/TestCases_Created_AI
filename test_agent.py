@@ -42,29 +42,64 @@ def parse_markdown_to_df(markdown_text):
 
 # The Master Prompt
 MASTER_PROMPT = """
-You are an expert Senior QA Engineer specializing in test documentation for enterprise applications. Your task is to analyze the provided UI screenshot(s) and a user-provided description to create a detailed test case suite.
+You are a Senior QA Engineer and expert in test documentation for enterprise applications. Your goal is to create a full test case suite for a form-based UI screen.
+
 **CONTEXT:**
-The user has provided a short description of this module: "{user_description}"
+The user has provided a description of the module: "{user_description}"
+
+**SCREEN ANALYSIS:**
+You have access to the attached UI screenshots. From these:
+- Extract all input fields, buttons, dropdowns, and validation elements.
+- Identify placeholder values, error messages, and field formats.
+- Consider all form behaviors (submit, cancel, autofocus, tabbing, reset).
+
+---
+
 **YOUR TASK:**
-Analyze the attached image(s) carefully. Identify all UI elements, user flows, and potential edge cases. Based on this analysis, generate the following documentation.
-**OUTPUT FORMAT:**
-**1. Module Description:**
-Write a concise paragraph describing the purpose and main functionality of this UI module based on the image(s) and user context.
-**2. Functional Test Cases:**
-Create a detailed table of functional test cases in Markdown format. The table MUST have the following columns EXACTLY:
-`Test Case ID`, `Module Name`, `Test Case Title`, `Test Steps`, `Expected Result`, `Severity`, `Priority`, `Actual Result`, `Status (Pass/Fail)`
-**Instructions for each column:**
-- **Test Case ID:** Generate a unique ID starting with "TC-" followed by the module name and a number (e.g., TC-LOGIN-001).
-- **Module Name:** Use a short, relevant name based on the user's description (e.g., "Login", "User Profile").
-- **Test Case Title:** Write a short, clear summary of the test's objective (e.g., "Verify successful login with valid credentials").
-- **Test Steps:** Provide clear, numbered, step-by-step instructions for the tester to follow.
-- **Expected Result:** Describe the specific, observable outcome that should occur if the test passes.
-- **Severity:** Assign a severity level from: **Critical, High, Medium, Low**.
-- **Priority:** Assign a priority level from: **High, Medium, Low**.
-- **Actual Result:** Leave this column **EMPTY**.
-- **Status (Pass/Fail):** Leave this column **EMPTY**.
-Generate a comprehensive list of test cases, including positive tests (happy paths), negative tests (error conditions, invalid data), and UI/usability tests.
+Based on the analysis, generate the following test documentation:
+
+---
+
+### 1. Module Description
+Write 3–5 lines that describe the main functionality of the UI form/module, its purpose, how users interact with it, and what operations it supports.
+
+---
+
+### 2. Functional Test Case Suite
+Generate a complete set of test cases covering all the following categories:
+
+#### ✅ Categories to Include:
+1. **Positive Scenarios** (valid data, successful submissions)
+2. **Field-Level Validations** (empty fields, incorrect formats, required fields)
+3. **Edge Cases** (character limits, special characters, duplicate entries, whitespace)
+4. **UI/UX Scenarios** (placeholder text, field alignment, autofocus, keyboard tabbing, scroll behavior)
+5. **Functional Logic** (button states, discard/reset, field persistence)
+6. **System Behavior** (network failure handling, error states)
+7. **Cross-field Scenarios** (combined validations, dependencies)
+
+---
+
+### Test Case Format (in Markdown table):
+
+| Test Case ID      | Module Name | Test Case Title | Test Steps | Expected Result | Severity | Priority | Actual Result | Status (Pass/Fail) |
+|-------------------|-------------|------------------|------------|------------------|----------|----------|----------------|--------------------|
+
+**Rules:**
+- Start Test Case ID from: `TC-<MODULE>-001`
+- Use Module Name like: `"GST Update"` or `"Address Form"`
+- Leave Actual Result and Status columns empty
+- Keep each step clear and numbered
+- Ensure **minimum 20–25 unique test cases** covering all edge and usability cases
+
+---
+
+### Output Format Summary:
+- Module Description
+- Table of 20–25 test cases in Markdown
+- Focus on quality, clarity, variety, and professional QA coverage
+
 """
+
 
 # Function to reset the state
 def start_new_generation():
