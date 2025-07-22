@@ -11,6 +11,7 @@ from st_copy_button import st_copy_button
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, JsCode
 import easyocr  # For OCR
 from fpdf import FPDF, FontFace  # For PDF Export
+from streamlit_paste_button import paste_image_button
 
 # --- Page Configuration (MUST be the first Streamlit command) ---
 st.set_page_config(layout="wide", page_title="Professional AI Test Case Generator")
@@ -20,69 +21,117 @@ st.set_page_config(layout="wide", page_title="Professional AI Test Case Generato
 # =================================================================================================
 CUSTOM_CSS = """
 <style>
-    /* Main App background and text */
-    .stApp {
-        background-color: #0E1117;
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+    /* Universal font */
+    html, body, [class*="css"] {
+        font-family: 'Roboto', sans-serif;
     }
 
-    /* Sidebar styling - Note: This class name might change with Streamlit updates */
+    /* Main App background and text */
+    .stApp {
+        background-color: #F0F2F6; /* Light gray background */
+        color: #333333; /* Darker text for readability */
+    }
+
+    /* Sidebar styling */
     .st-emotion-cache-16txtl3 {
-        background-color: #1a1c24;
-        border-right: 1px solid #262730;
+        background-color: #FFFFFF; /* White sidebar */
+        border-right: 1px solid #E0E0E0;
+        box-shadow: 2px 0px 5px rgba(0,0,0,0.05);
     }
 
     /* Headers */
-    h1, h2, h3, h4 {
-        color: #FAFAFA;
+    h1, h2, h3, h4, h5, h6 {
+        color: #1E3A8A; /* A deep blue for headers */
+        font-weight: 700;
     }
-    
-    /* Primary Button Styling */
+
+    /* Title specifically */
+    h1 {
+        font-size: 2.2rem; /* Adjusted title size */
+        font-weight: 700;
+        padding-bottom: 0.3rem;
+    }
+
+    /* Primary button - modern blue gradient */
     .stButton > button:not([kind="secondary"]) {
-        background: linear-gradient(to right, #ff4e50, #f9d423);
-        color: white;
-        border: none;
-        padding: 10px 24px;
+        background: linear-gradient(to right, #3B82F6, #2563EB);
+        color: #fff;
+        padding: 12px 28px;
         border-radius: 8px;
-        font-weight: bold;
+        font-weight: 500;
+        border: none;
+        box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
     .stButton > button:not([kind="secondary"]):hover {
-        background: linear-gradient(to right, #f9d423, #ff4e50);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
         transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(59, 130, 246, 0.3);
     }
     .stButton > button:not([kind="secondary"]):active {
-        transform: translateY(1px);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        transform: translateY(0);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
     }
 
-
-    /* Secondary Button Styling (outline) */
+    /* Secondary Button Styling (subtle outline) */
     .stButton > button[kind="secondary"] {
         background-color: transparent;
-        color: #FAFAFA;
-        border: 1px solid #4A4A4A;
+        color: #2563EB; /* Blue text */
+        border: 1px solid #93C5FD; /* Light blue border */
+        border-radius: 8px;
+        padding: 10px 24px;
+        transition: all 0.3s ease;
     }
     .stButton > button[kind="secondary"]:hover {
-        border-color: #f9d423;
-        color: #f9d423;
+        border-color: #2563EB;
+        background-color: rgba(59, 130, 246, 0.05);
+        color: #1E40AF;
     }
-    
-    /* st.info box styling for dark theme */
+
+    /* st.info / Alert box styling */
     .stAlert {
-        background-color: rgba(45, 93, 135, 0.2);
-        border: 1px solid #2d5d87;
-        border-left-width: 5px;
-        border-radius: 5px;
+        background-color: #E0F2FE; /* Light blue background */
+        border-left: 5px solid #0EA5E9; /* Sky blue border */
+        color: #0C5460;
+        padding: 1rem;
+        border-radius: 8px;
     }
 
     /* Footer styling */
     .footer {
         text-align: center;
-        color: #888;
+        color: #6B7280; /* Gray for footer */
         font-size: 0.9rem;
-        padding-top: 2rem;
+        padding-top: 2.5rem;
+    }
+
+    /* Table headers and cells - clean and modern (for st.dataframe) */
+    .stDataFrame th {
+        background-color: #E5E7EB;
+        color: #1F2937;
+        font-weight: 600;
+    }
+    .stDataFrame td {
+        color: #374151;
+        background-color: #FFFFFF;
+        border-bottom: 1px solid #F3F4F6;
+    }
+
+    /* Text input, SelectBox, etc. */
+    .stTextInput > div > div > input,
+    .stSelectbox > div > div > div {
+        background-color: #FFFFFF !important;
+        color: #333333 !important;
+        border-radius: 8px;
+        border: 1px solid #D1D5DB; /* Gray border */
+        padding: 10px;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .stTextInput > div > div > input:focus,
+    .stSelectbox > div > div > div:focus-within {
+        border-color: #3B82F6; /* Blue border on focus */
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
     }
 </style>
 """
@@ -95,47 +144,82 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 AI_MODEL_NAME = "gemini-1.5-flash-latest"
 
 MASTER_PROMPT = """
-You are a world-class Senior QA Engineer, an expert in creating comprehensive and detailed test documentation for enterprise-grade software.
+You are a world-class Senior QA Engineer with an expert-level eye for detail and extensive experience testing complex UI workflows and data-driven systems.
+
+Your task is to generate a **complete and accurate test case suite** that mimics the depth and professionalism of enterprise-grade QA teams.
+
+---
 
 **USER-PROVIDED CONTEXT:**
-- User's Description: "{user_description}"
+- Module Description: "{user_description}"
 - Test Case ID Prefix: "{case_id_prefix}"
 
-**YOUR ANALYSIS OF THE ATTACHED SCREENSHOT(S):**
-- You must meticulously analyze the attached UI screenshot(s).
-- If multiple images are provided, treat them as a sequential user flow (Screen 1, Screen 2, etc.).
-- The following text was extracted via OCR from the screenshots. Use it to improve field name accuracy and understand the UI better:
+---
+
+**SCREENSHOT ANALYSIS INSTRUCTIONS:**
+You are given UI screenshots (possibly multiple, forming a flow) and OCR-extracted text to enhance accuracy. You MUST:
+- Detect all visible fields, labels, buttons, tables, dropdowns, error messages, tooltips, and URLs.
+- Notice **spelling mistakes**, **grammar errors**, **UI alignment issues**, **overlapping elements**, **font/color mismatches**, and **mobile-unfriendly layouts**.
+- Identify broken links, missing alt text, default placeholders, poor accessibility, or contrast issues.
+
 <OCR_TEXT>
 {ocr_text}
 </OCR_TEXT>
 
 ---
 
-**YOUR PRIMARY TASK:**
-Generate a professional test suite based on all the provided context. The output must be structured exactly as follows.
-
----
-
 ### 1. Module Description
-Write a concise, 3-5 line paragraph describing the module's primary function, its business purpose, and the main user interactions it supports.
+Write a short 3–5 line description explaining what this module/page does, its business purpose, and how a user interacts with it.
 
 ---
 
-### 2. Functional Test Case Suite
-Generate a complete and diverse set of **{num_cases}** test cases. The suite must cover the following user-selected categories: **{categories_to_include}**.
+### 2. Comprehensive QA Test Case Suite
 
-**--- IMPORTANT INSTRUCTION FOR MULTIPLE IMAGES ---**
-If there are multiple screenshots, you **MUST** group the test cases by screen. Use a markdown heading for each screen (e.g., ### Screen 1: Login Page).
+Generate a complete QA suite based on the screenshots and user description. The suite **must cover** the following test types:
 
-**MANDATORY OUTPUT FORMAT: MARKDOWN TABLE**
-Provide the test cases **only** in a Markdown table format with these exact columns: | Test Case ID | Module Name | Category | Test Case Title | Test Steps | Expected Result | Priority | Test Type |
+✅ Functional Testing  
+✅ UI/UX Testing (spelling, layout, overlapping text, font issues)  
+✅ Input Validation (positive, negative, edge cases)  
+✅ Error Message Validation  
+✅ Usability Testing (clarity, user experience, accessibility, empty state)  
+✅ Navigation & Link Verification (URLs, redirects, broken links)  
+✅ Responsive Design (screen size, mobile/desktop)  
+✅ Visual Defect Detection (overlaps, color inconsistencies, hidden elements)  
+✅ Business Logic Testing (if applicable)
 
-**RULES AND GUIDELINES:**
-- **Test Case ID:** Start from `{case_id_prefix}-001` and increment sequentially.
-- **Test Steps:** Be explicit and number each step. Use `<br>` for line breaks within a cell.
-- **Priority:** Assign "High", "Medium", or "Low".
-- **Test Type:** Assign "Smoke", "Sanity", or "Regression".
-- **DO NOT** add any introductory text before the "Module Description" or after the Markdown table. Your entire response must start with `### 1. Module Description`.
+**MULTIPLE SCREEN INSTRUCTION:**  
+If screenshots cover multiple screens, treat them as a flow. Group test cases under headings like:
+
+Screen 1: Login Page
+Screen 2: Dashboard
+
+---
+
+### TEST CASE TABLE FORMAT (MANDATORY)
+
+Output your test cases **ONLY** using this exact markdown table format:
+
+| Test Cases ID | Module Name | Test Cases Description | Test Cases Steps | Expected Result | Actual Result | Dev_Result (PASS/FAIL) | Dev_Remarks | QA_Result (PASS/FAIL) | Screenshot | QA Comment | Date | Reported By | Recheck |
+|---------------|-------------|-------------------------|------------------|------------------|---------------|-------------------------|-------------|------------------------|------------|-------------|------|--------------|---------|
+
+---
+
+### RULES:
+- **Test Cases ID:** Start from `{case_id_prefix}-001` and increment.
+- **Steps:** Be granular. Use `1.<br>2.<br>3.` etc. in each row.
+- **Expected Result:** Should be behaviorally precise.
+- **Actual Result:** Leave it blank (unless told to simulate bugs).
+- **Screenshot:** Leave it blank unless otherwise instructed.
+- **Date:** Use today's date.
+- **Reported By:** Use "QA Team"
+- **Recheck:** Leave blank.
+
+---
+
+### TONE:
+You are acting like a forensic QA with deep inspection skills—nothing must escape your notice. You must inspect every corner of the UI and imagine edge cases a junior tester may miss.
+
+Now generate the test suite.
 """
 
 BUG_SUMMARY_PROMPT = """
@@ -157,8 +241,10 @@ Keep the summary brief, professional, and actionable.
 # --- HELPER FUNCTIONS ---
 # =================================================================================================
 
+# FIX: Replaced @st.cache with @st.cache_resource for the OCR model
 @st.cache_resource
 def get_ocr_reader():
+    """Initializes and caches the EasyOCR reader model to prevent reloading on every script run."""
     return easyocr.Reader(['en'])
 
 def extract_text_from_image(image_bytes):
@@ -256,13 +342,17 @@ if 'bug_summary' not in st.session_state: st.session_state.bug_summary = ""
 if 'last_run_inputs' not in st.session_state: st.session_state.last_run_inputs = {}
 
 def start_new_generation():
+    # Clear out the uploaded files list for the current run_id specifically
+    if f"uploaded_files_{st.session_state.run_id}" in st.session_state:
+        st.session_state[f"uploaded_files_{st.session_state.run_id}"] = []
+    
     st.session_state.last_response, st.session_state.df_test_cases, st.session_state.bug_summary, st.session_state.last_run_inputs = "", pd.DataFrame(), "", {}
     st.session_state.run_id += 1
 
 st.sidebar.header("⚙️ Configuration")
 api_key = st.sidebar.text_input("Enter your Google AI API Key", type="password", value=cookies.get('api_key') if cookies.ready() else "")
 with st.sidebar.expander("🔬 Test Generation Settings", expanded=True):
-    num_cases_to_gen = st.number_input("Number of Test Cases", min_value=5, max_value=50, value=15, step=5)
+    num_cases_to_gen = st.number_input("Minimum Number of Test Cases", min_value=5, max_value=50, value=15, step=5, help="The agent will generate at least this many test cases, but may generate more if more scenarios are found.")
     case_id_prefix = st.text_input("Test Case ID Prefix", value="TC-LOGIN")
     test_categories = st.multiselect("Select Test Categories to Generate", ["Positive Scenarios", "Field-Level Validations", "Edge Cases", "UI/UX Scenarios", "Functional Logic", "System Behavior", "Accessibility"], default=["Positive Scenarios", "Field-Level Validations", "Edge Cases", "UI/UX Scenarios"])
 with st.sidebar.expander("📜 View Generation History (Last 5)"):
@@ -273,11 +363,37 @@ with st.sidebar.expander("📜 View Generation History (Last 5)"):
                 st.session_state.last_response, st.session_state.df_test_cases, st.session_state.last_run_inputs = record['response'], parse_multi_screen_markdown(record['response']), record.get('inputs', {})
                 st.rerun()
 
-st.title("🚀 Professional AI Test Case Generator")
+st.title("🚀 AI-Powered Test Case Suite Generator")
 main_cols = st.columns([0.45, 0.55]) # Adjust column widths for better balance
 with main_cols[0]:
     st.subheader("✍️ 1. Describe Your UI")
-    uploaded_files = st.file_uploader("Upload UI Screenshot(s)", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key=f"uploader_{st.session_state.run_id}")
+    
+    # Initialize session state for uploaded files if it doesn't exist
+    if f"uploaded_files_{st.session_state.run_id}" not in st.session_state:
+        st.session_state[f"uploaded_files_{st.session_state.run_id}"] = []
+
+    # Let users paste images from clipboard
+    paste_result = paste_image_button("📋 Paste image from clipboard", key=f"paste_{st.session_state.run_id}")
+    if paste_result.image_data is not None:
+        # Only add if not already in the list (by object reference)
+        if paste_result.image_data not in st.session_state[f"uploaded_files_{st.session_state.run_id}"]:
+            st.session_state[f"uploaded_files_{st.session_state.run_id}"].append(paste_result.image_data)
+
+    # Allow users to upload files, and append them to the session state list
+    uploaded_files_from_uploader = st.file_uploader(
+        "📂 Drag and drop files here",
+        type=["png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key=f"uploader_{st.session_state.run_id}"
+    )
+    if uploaded_files_from_uploader:
+        for uploaded_file in uploaded_files_from_uploader:
+             if not any(f.name == uploaded_file.name for f in st.session_state[f"uploaded_files_{st.session_state.run_id}"]):
+                st.session_state[f"uploaded_files_{st.session_state.run_id}"].append(uploaded_file)
+
+    # Use the session state list as the source of truth
+    uploaded_files = st.session_state[f"uploaded_files_{st.session_state.run_id}"]
+    
     if uploaded_files:
         st.write("Uploaded Image Previews:")
         cols = st.columns(len(uploaded_files))
@@ -288,7 +404,7 @@ with main_cols[0]:
         st.info("""
         **A good description is key to great test cases!**
         - **Weak:** "login test"
-        - **Strong:** "This is the main login screen for our B2B SaaS platform. It requires a corporate email and a password. There is a 'Forgot Password' link but no 'Sign Up' option. After 3 failed attempts, the account should be locked." 
+        - **Strong:** "This is the main login screen for our B2B SaaS platform. It requires a corporate email and a password. There is a 'Forgot Password' link but no 'Sign Up' option. After 3 failed attempts, the account should be locked."
         """)
     st.divider()
     st.subheader("🚀 2. Generate Your Suite")
@@ -309,24 +425,35 @@ with main_cols[1]:
         tab1, tab2, tab3 = st.tabs(["📝 Interactive Test Suite", "🐞 Bug Report", "📄 Raw AI Output"])
         with tab1:
             st.markdown("###### Edit, Sort, and Filter Test Cases")
-            gb = GridOptionsBuilder.from_dataframe(st.session_state.df_test_cases)
+            # Reorder and ensure all required columns are present
+            required_columns = [
+                "Test Cases ID", "Module Name", "Test Cases Description", "Test Cases Steps", "Expected Result", "Actual Result", "Dev_Result (PASS/FAIL)", "Dev_Remarks", "QA_Result (PASS/FAIL)", "Screenshot", "QA Comment", "Date", "Reported By", "Recheck"
+            ]
+            for col in required_columns:
+                if col not in st.session_state.df_test_cases.columns:
+                    st.session_state.df_test_cases[col] = ""
+            st.session_state.df_test_cases = st.session_state.df_test_cases[required_columns]
+            # Remove <br> from display in Test Cases Steps and Expected Result
+            display_df = st.session_state.df_test_cases.copy()
+            for col in ["Test Cases Steps", "Expected Result"]:
+                if col in display_df.columns:
+                    display_df[col] = display_df[col].astype(str).str.replace('<br>', '\n', regex=False)
+            gb = GridOptionsBuilder.from_dataframe(display_df)
             gb.configure_default_column(editable=True, filterable=True, groupable=True, resizable=True)
-            gb.configure_column("Status", cellEditor='agGridSelectCellEditor', cellEditorParams={'values': ['Not Run', 'Pass', 'Fail', 'Blocked']})
-            gb.configure_column("Test Steps", wrapText=True, autoHeight=True, width=350)
-            jscode = JsCode("""function(params) { if (params.value === 'High') return {'color': 'white', 'backgroundColor': '#a83232'}; if (params.value === 'Medium') return {'color': 'black', 'backgroundColor': '#f0c892'}; if (params.value === 'Low') return {'color': 'white', 'backgroundColor': '#326da8'}; };""")
-            gb.configure_column('Priority', cellStyle=jscode)
+            gb.configure_column("Dev_Result (PASS/FAIL)", cellEditor='agGridSelectCellEditor', cellEditorParams={'values': ['PASS', 'FAIL', '']})
+            gb.configure_column("QA_Result (PASS/FAIL)", cellEditor='agGridSelectCellEditor', cellEditorParams={'values': ['PASS', 'FAIL', '']})
+            gb.configure_column("Test Cases Steps", wrapText=True, autoHeight=True, width=350)
             gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren=True)
-            aggrid_response = AgGrid(st.session_state.df_test_cases, gridOptions=gb.build(), update_mode=GridUpdateMode.MODEL_CHANGED, data_return_mode=DataReturnMode.AS_INPUT, allow_unsafe_jscode=True, height=500, fit_columns_on_grid_load=True, theme='balham-dark')
+            aggrid_response = AgGrid(display_df, gridOptions=gb.build(), update_mode=GridUpdateMode.MODEL_CHANGED, data_return_mode=DataReturnMode.AS_INPUT, allow_unsafe_jscode=True, height=500, fit_columns_on_grid_load=True, theme='alpine')
             edited_df = pd.DataFrame(aggrid_response['data']); st.session_state.df_test_cases = edited_df
             st.divider()
             st.markdown("#### 📊 Test Suite Metrics")
-            metric_cols = st.columns(4)
+            metric_cols = st.columns(2)
             metric_cols[0].metric("Total Test Cases", len(edited_df))
-            if 'Priority' in edited_df.columns:
-                priority_counts = edited_df['Priority'].value_counts()
-                metric_cols[1].metric("High Priority", priority_counts.get("High", 0))
-                metric_cols[2].metric("Medium Priority", priority_counts.get("Medium", 0))
-                metric_cols[3].metric("Low Priority", priority_counts.get("Low", 0))
+            if 'Dev_Result (PASS/FAIL)' in edited_df.columns:
+                dev_pass = (edited_df['Dev_Result (PASS/FAIL)'] == 'PASS').sum()
+                dev_fail = (edited_df['Dev_Result (PASS/FAIL)'] == 'FAIL').sum()
+                metric_cols[1].metric("Dev PASS/FAIL", f"{dev_pass} / {dev_fail}")
             st.divider()
             st.markdown("#### 📤 Export Options")
             export_col1, export_col2 = st.columns(2)
@@ -341,7 +468,7 @@ with main_cols[1]:
                 if bug_df.empty: st.info("No test cases have been marked as bugs yet.")
                 else:
                     st.warning("The following test cases have been flagged as bugs:")
-                    AgGrid(bug_df, fit_columns_on_grid_load=True, theme='balham-dark')
+                    AgGrid(bug_df, fit_columns_on_grid_load=True, theme='alpine')
                     if st.button("🤖 Generate AI Bug Summary"):
                         with st.spinner("AI is analyzing the bugs..."): st.session_state.bug_summary = generate_bug_summary(api_key, bug_df)
                     if st.session_state.bug_summary:
@@ -375,10 +502,24 @@ def trigger_generation(run_inputs):
         except Exception as e: st.error(f"An error occurred: {e}")
         finally: st.rerun()
 
+def file_to_bytes(f):
+    if hasattr(f, "getvalue"):  # UploadedFile
+        return f.getvalue()
+    else:  # PIL Image
+        buf = io.BytesIO()
+        f.save(buf, format="PNG")
+        return buf.getvalue()
+
 should_run, run_inputs = False, {}
 if generate_button:
     should_run = True
-    run_inputs = {'files': [f.getvalue() for f in uploaded_files], 'description': user_description, 'num_cases': num_cases_to_gen, 'categories': test_categories, 'prefix': case_id_prefix}
+    run_inputs = {
+        'files': [file_to_bytes(f) for f in uploaded_files],
+        'description': user_description,
+        'num_cases': num_cases_to_gen,
+        'categories': test_categories,
+        'prefix': case_id_prefix
+    }
 elif st.session_state.last_run_inputs.get('regenerate'):
     should_run, run_inputs = True, st.session_state.last_run_inputs
     st.session_state.last_run_inputs['regenerate'] = False
@@ -389,4 +530,6 @@ if should_run:
     elif not run_inputs.get('description'): st.error("❌ Please provide a description for context.")
     else: trigger_generation(run_inputs)
 
+# FIX: Removed extra parenthesis at the end of this line
 st.markdown(f"<div class='footer'>Built with ❤️ by Jaimin Sharma | AI Model: {AI_MODEL_NAME}</div>", unsafe_allow_html=True)
+
